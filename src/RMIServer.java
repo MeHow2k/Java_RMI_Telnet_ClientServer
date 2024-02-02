@@ -10,14 +10,15 @@ import java.rmi.registry.Registry;
 import java.security.NoSuchAlgorithmException;
 import java.util.Scanner;
 
+//server telnetu
 public class RMIServer {
     private static String IP;
     private static String PORT;
-    private static TelnetServer telnetServer;
-    private static SecretKey secretKey;
-    private static boolean cipherOption=false;
-    private static Scanner scanner  = new Scanner(System.in);
-
+    private static TelnetServer telnetServer;//interfejs
+    private static SecretKey secretKey;//klucz do szyfrowania
+    private static boolean cipherOption=false;//flaga czy dane sa szyfrowane
+    private static Scanner scanner  = new Scanner(System.in);//utworzenie scanera
+    //funkcja pobierająca IP,PORT, i pyta o szyfrowanie
     public static void IPInput() {
         do {
             System.out.println("Enter server IP address:");
@@ -47,8 +48,10 @@ public class RMIServer {
             }
         } while (!validInput);
     }
+    //funkcja generująca klucz do szyfrowania i tworząca plik z zserializowanym obiektem klucza
     public static void generateKey() {
         SecretKey key;
+        //generowanie klucza
         try {
             KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
             key = keyGenerator.generateKey();
@@ -57,6 +60,7 @@ public class RMIServer {
             e.printStackTrace();
             return ;
         }
+        //serializacja obiektu klucza i tworzenie pliku
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("serverKey"))) {
             oos.writeObject(key);
             System.out.println("Key saved to file: serverKey");
@@ -69,6 +73,7 @@ public class RMIServer {
             System.err.println("Error saving key to file: " + e.getMessage());
         }
     }
+    //funkcja wczytująca zserializowany klucz z pliku
     public static SecretKey readKeyFromFile() {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("serverKey"))) {
             Object obj = ois.readObject();
@@ -85,6 +90,7 @@ public class RMIServer {
             return null;
         }
     }
+    //funkcja sprawdzająca poprawność IP
     private static boolean isValidIP(String ip) {
         try {
             InetAddress address = InetAddress.getByName(ip);
@@ -93,6 +99,7 @@ public class RMIServer {
             return false;
         }
     }
+    //funkcja sprawdzająca poprawność portu
     public static boolean isValidPort(String port) {
         try {
             int portNumber = Integer.parseInt(port);
@@ -101,17 +108,21 @@ public class RMIServer {
             return false;
         }
     }
+    //pętla główna serwera
     public static void main(String[] args) {
         System.out.println("Telnet Server program. Michal Pasieka 2024. ");
-        IPInput();
-        secretKey = readKeyFromFile();
+        IPInput();//wprowadzenie ip,port, pytanie o szyfrowanie
+        if(cipherOption) secretKey = readKeyFromFile();//odczyt klucza z pliku
         try {
             System.setProperty("java.rmi.server.hostname", IP);
+            //utworzenie obiektu implementacji serwera
             if (cipherOption) telnetServer = new TelnetServerImplCipher(secretKey);
             else telnetServer = new TelnetServerImpl();
+            //wpisanie do rejestru rmi
             Registry registry = LocateRegistry.createRegistry(Integer.parseInt(PORT));
             registry.rebind("TelnetServer", telnetServer);
             System.out.println("Telnet server is up.");
+            //czekanie na sygnał q do wyjscia lub newkey do wygenerowania nowego klucza
             System.out.println("If you want exit type \"q\", to generate new key type \"newkey\".");
             while (true){
                 String input = scanner.nextLine();

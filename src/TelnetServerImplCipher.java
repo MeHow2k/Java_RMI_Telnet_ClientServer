@@ -9,26 +9,28 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Base64;
 
-
+//implementacja działania serwera w przypadku szyfrowania komunikacji
 public class TelnetServerImplCipher extends UnicastRemoteObject implements TelnetServer {
-    private SecretKey secretKey;
+    private SecretKey secretKey;//przechowuje klucz do szyfrowania komunikacji
     public TelnetServerImplCipher(SecretKey secretKey) throws RemoteException {
         super();
-        this.secretKey = secretKey;
+        this.secretKey = secretKey;//klucz przekazywany w konstruktorze
     }
+    //funkcja szyfrująca tekst
     private String encrypt(String message) throws Exception {
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
         byte[] encryptedBytes = cipher.doFinal(message.getBytes());
         return Base64.getEncoder().encodeToString(encryptedBytes);
     }
-
+    //funkcja deszyfrująca tekst
     private String decrypt(String encryptedMessage) throws Exception {
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.DECRYPT_MODE, secretKey);
         byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedMessage));
         return new String(decryptedBytes);
     }
+    //funkcja pobierająca hostname serwera
     public static String getHostName() {
         String hostname = "";
         try {
@@ -41,13 +43,15 @@ public class TelnetServerImplCipher extends UnicastRemoteObject implements Telne
         return hostname;
     }
     Process process;
-    StringBuilder result;
+    StringBuilder result;//przechowuje rezultat komendy
+    //funkcja realizująca uruchomienie zdalnie komendy na serwerze
     @Override
     public String executeCommand(String command) throws Exception {
-            result = new StringBuilder();
+            result = new StringBuilder();//nowa zawartosc
             try {
-                // Wykonanie polecenia
+                // deszyfrowanie otrzymanego polecenia
                 String decryptedCommand = decrypt(command);
+                //jesli windows uruchom cmd i komende, jesli linux uruchom basha i komende
                 String os = System.getProperty("os.name").toLowerCase();
                 if (os.contains("win")) {
                     process = Runtime.getRuntime().exec("cmd.exe /c "+decryptedCommand);
@@ -72,10 +76,10 @@ public class TelnetServerImplCipher extends UnicastRemoteObject implements Telne
             } catch (Exception e) {
                 System.out.println("Exception: "+e.toString());
             }
-        return encrypt(result.toString());
+        return encrypt(result.toString());//zwraca odszyfrowane wyjście komendy
     }
     @Override
-    public String getOSInfo() throws Exception {
+    public String getOSInfo() throws Exception {//pobiera informacje o serwerze
        return encrypt("\nSERVER INFORMATION:\n"+"Operating system: "+System.getProperty("os.name")+" version: "+
                System.getProperty("os.version")+"\nOS architecture: "+System.getProperty("os.arch")
                +"\nJava Version: "+System.getProperty("java.version")+"\nUsername: "+System.getProperty("user.name")+
